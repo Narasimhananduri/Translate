@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import 'amazon-connect-streams';
 
 const API_URL = 'https://flv38gpj2c.execute-api.us-east-1.amazonaws.com/test/translate';
-const CCP_URL = 'https://ccaas-coe-sandbox.my.connect.aws'; 
+const CCP_URL = 'https://ccaas-coe-sandbox.my.connect.aws/ccp-v2'; 
 
 interface MessageItem {
   id: string;
