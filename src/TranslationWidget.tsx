@@ -35,9 +35,9 @@ const TranslationWidget: React.FC = () => {
   useEffect(() => {
     window.connect.core.initCCP(document.getElementById('ccpContainer')!, {
       ccpUrl: CCP_URL,
-      loginPopup: false,
+      loginPopup: true,
       region: 'us-east-1',
-      softphone: { allowFramedSoftphone: false },
+      softphone: { allowFramedSoftphone: true },
     });
 
     window.connect.contact((contact: any) => {
