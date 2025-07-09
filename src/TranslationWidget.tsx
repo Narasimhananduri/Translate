@@ -15,12 +15,6 @@ interface ChatMessage {
   participantRole: string;
 }
 
-// Simulated translation function — just passes the original text
-const fakeTranslate = async (text: string) => {
-  console.log('[fakeTranslate] Skipping API. Using raw text:', text);
-  return text; // no translation
-};
-
 const TranslationWidget: React.FC = () => {
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [reply, setReply] = useState('');
@@ -45,10 +39,10 @@ const TranslationWidget: React.FC = () => {
           console.log('[onMessage] Message received from customer:', msg);
 
           if (msg.participantRole === 'CUSTOMER') {
-            const sameText = await fakeTranslate(msg.content); // just returns same message
+            const rawText = msg.content;
             setMessages((prev) => [
               ...prev,
-              { id: msg.id, original: msg.content, translated: sameText },
+              { id: msg.id, original: rawText, translated: rawText },
             ]);
           }
         });
@@ -67,10 +61,17 @@ const TranslationWidget: React.FC = () => {
       return;
     }
 
-    console.log('[sendReply] Sending reply to customer:', reply);
+    const agentConnection = activeContact.getConnections().find(
+      (conn: any) => conn.getType() === 'AGENT'
+    );
+
+    if (!agentConnection || !agentConnection.sendMessage) {
+      console.error('[sendReply] Agent connection not available or invalid.');
+      return;
+    }
 
     try {
-      await activeContact.sendMessage({
+      await agentConnection.sendMessage({
         content: reply,
         contentType: 'text/plain',
       });
@@ -85,7 +86,7 @@ const TranslationWidget: React.FC = () => {
   return (
     <div style={{ fontFamily: 'Arial', padding: '10px' }}>
       <div id="ccpContainer" style={{ height: '400px', marginBottom: '20px' }} />
-      <h3>Live Chat (Pass-through Mode)</h3>
+      <h3>Live Chat (Raw Pass-through)</h3>
 
       <div
         style={{
