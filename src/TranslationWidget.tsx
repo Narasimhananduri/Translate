@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import 'amazon-connect-streams';
 
 const API_URL = 'https://flv38gpj2c.execute-api.us-east-1.amazonaws.com/test/translate';
-const CCP_URL = 'https://ccaas-coe-sandbox.my.connect.aws/ccp-v2'; 
+const CCP_URL = 'https://ccaas-coe-sandbox.my.connect.aws/ccp-v2';
 
 interface MessageItem {
   id: string;
@@ -44,6 +44,8 @@ const callTranslate = async (text: string) => {
 
 const TranslationWidget: React.FC = () => {
   const [activeContact, setActiveContact] = useState<any>(null);
+  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [reply, setReply] = useState<string>('');
 
   useEffect(() => {
     console.log('[useEffect] Initializing CCP...');
@@ -64,6 +66,17 @@ const TranslationWidget: React.FC = () => {
           if (msg.participantRole === 'CUSTOMER') {
             const translated = await callTranslate(msg.content);
             setMessages((prev) => [
+              ...prev,
+              {
+                id: msg.id,
+                original: msg.content,
+                translated,
+              },
+            ]);
+          }
+        });
+      }
+    });
   }, []);
 
   const sendReply = async () => {
