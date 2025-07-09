@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import 'amazon-connect-streams';
 
-const CCP_URL = 'https://ccaas-coe-sandbox.my.connect.aws/ccp-v2';
+const API_URL = 'https://flv38gpj2c.execute-api.us-east-1.amazonaws.com/test/translate';
+const CCP_URL = 'https://ccaas-coe-sandbox.my.connect.aws/ccp-v2'; 
 
 interface MessageItem {
   id: string;
@@ -14,6 +15,32 @@ interface ChatMessage {
   content: string;
   participantRole: string;
 }
+
+const callTranslate = async (text: string) => {
+  try {
+    console.log('[callTranslate] Called with text:', text);
+
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+
+    console.log('[callTranslate] Response status:', resp.status);
+
+    if (!resp.ok) {
+      throw new Error(HTTP error! status: ${resp.status});
+    }
+
+    const data = await resp.json();
+    console.log('[callTranslate] API returned:', data);
+
+    return data.translatedText;
+  } catch (error) {
+    console.error('[callTranslate] Error:', error);
+    return '[Translation Failed]';
+  }
+};
 
 const TranslationWidget: React.FC = () => {
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -36,13 +63,13 @@ const TranslationWidget: React.FC = () => {
         setActiveContact(contact);
 
         contact.onMessage(async (msg: ChatMessage) => {
-          console.log('[onMessage] Message received from customer:', msg);
+          console.log('[onMessage] Message received:', msg);
 
           if (msg.participantRole === 'CUSTOMER') {
-            const rawText = msg.content;
+            const translated = await callTranslate(msg.content);
             setMessages((prev) => [
               ...prev,
-              { id: msg.id, original: rawText, translated: rawText },
+              { id: msg.id, original: msg.content, translated },
             ]);
           }
         });
@@ -61,21 +88,16 @@ const TranslationWidget: React.FC = () => {
       return;
     }
 
-    const agentConnection = activeContact.getConnections().find(
-      (conn: any) => conn.getType() === 'AGENT'
-    );
+    console.log('[sendReply] Sending reply:', reply);
 
-    if (!agentConnection || !agentConnection.sendMessage) {
-      console.error('[sendReply] Agent connection not available or invalid.');
-      return;
-    }
+    const translated = await callTranslate(reply);
 
     try {
-      await agentConnection.sendMessage({
-        content: reply,
+      await activeContact.sendMessage({
+        content: translated,
         contentType: 'text/plain',
       });
-      console.log('[sendReply] Message sent successfully:', reply);
+      console.log('[sendReply] Message sent successfully:', translated);
     } catch (err) {
       console.error('[sendReply] Failed to send message:', err);
     }
@@ -86,26 +108,22 @@ const TranslationWidget: React.FC = () => {
   return (
     <div style={{ fontFamily: 'Arial', padding: '10px' }}>
       <div id="ccpContainer" style={{ height: '400px', marginBottom: '20px' }} />
-      <h3>Live Chat (Raw Pass-through)</h3>
-
+      <h3>Translation Chat</h3>
       <div
         style={{
-          maxHeight: '250px',
+          maxHeight: '200px',
           overflowY: 'auto',
           border: '1px solid #ccc',
-          borderRadius: '4px',
-          padding: '10px',
-          backgroundColor: '#f9f9f9',
+          padding: '8px',
         }}
       >
         {messages.map((m) => (
-          <div key={m.id} style={{ marginBottom: '12px' }}>
+          <div key={m.id} style={{ marginBottom: '10px' }}>
             <div><strong>Customer:</strong> {m.original}</div>
-            <div><strong>Translated (Raw):</strong> {m.translated}</div>
+            <div><strong>Translated:</strong> {m.translated}</div>
           </div>
         ))}
       </div>
-
       <textarea
         rows={2}
         style={{ width: '100%', marginTop: '10px' }}
@@ -113,9 +131,8 @@ const TranslationWidget: React.FC = () => {
         value={reply}
         onChange={(e) => setReply(e.target.value)}
       />
-
       <button onClick={sendReply} style={{ marginTop: '6px' }}>
-        Send
+        Send (translated)
       </button>
     </div>
   );
