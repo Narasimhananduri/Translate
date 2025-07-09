@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import 'amazon-connect-streams';
 
 const API_URL = 'https://flv38gpj2c.execute-api.us-east-1.amazonaws.com/test/translate';
-const CCP_URL = 'https://ccaas-coe-sandbox.my.connect.aws/ccp-v2'; 
+const CCP_URL = 'https://ccaas-coe-sandbox.my.connect.aws/ccp-v2';
 
 interface MessageItem {
   id: string;
@@ -18,7 +18,7 @@ interface ChatMessage {
 
 const callTranslate = async (text: string) => {
   try {
-    console.log('[callTranslate] Called with text:', text);
+    console.log('[callTranslate] Translating text:', text);
 
     const resp = await fetch(API_URL, {
       method: 'POST',
@@ -28,23 +28,19 @@ const callTranslate = async (text: string) => {
 
     console.log('[callTranslate] Response status:', resp.status);
 
-    if (!resp.ok) {
-      throw new Error(`HTTP error! status: ${resp.status}`);
-    }
+    if (!resp.ok) throw new Error(`HTTP error! status: ${resp.status}`);
 
     const data = await resp.json();
-    console.log('[callTranslate] API returned:', data);
-
+    console.log('[callTranslate] Translated text:', data.translatedText);
     return data.translatedText;
   } catch (error) {
-    console.error('[callTranslate] Error:', error);
-    return '[Translation Failed]';
+    console.error('[callTranslate] Error translating message:', error);
+    return '[Translation failed]';
   }
 };
 
 const TranslationWidget: React.FC = () => {
   const [messages, setMessages] = useState<MessageItem[]>([]);
-  const [reply, setReply] = useState('');
   const [activeContact, setActiveContact] = useState<any>(null);
 
   useEffect(() => {
@@ -57,13 +53,13 @@ const TranslationWidget: React.FC = () => {
     });
 
     window.connect.contact((contact: any) => {
-      console.log('[connect.contact] New contact detected:', contact.getType());
+      console.log('[contact] New contact detected:', contact.getType());
 
       if (contact.getType() === 'chat') {
         setActiveContact(contact);
 
         contact.onMessage(async (msg: ChatMessage) => {
-          console.log('[onMessage] Message received:', msg);
+          console.log('[onMessage] New message received:', msg);
 
           if (msg.participantRole === 'CUSTOMER') {
             const translated = await callTranslate(msg.content);
@@ -77,63 +73,31 @@ const TranslationWidget: React.FC = () => {
     });
   }, []);
 
-  const sendReply = async () => {
-    if (!reply.trim()) {
-      console.warn('[sendReply] Empty reply. Skipping.');
-      return;
-    }
-
-    if (!activeContact) {
-      console.warn('[sendReply] No active contact. Cannot send message.');
-      return;
-    }
-
-    console.log('[sendReply] Sending reply:', reply);
-
-    const translated = await callTranslate(reply);
-
-    try {
-      await activeContact.sendMessage({
-        content: translated,
-        contentType: 'text/plain',
-      });
-      console.log('[sendReply] Message sent successfully:', translated);
-    } catch (err) {
-      console.error('[sendReply] Failed to send message:', err);
-    }
-
-    setReply('');
-  };
-
   return (
     <div style={{ fontFamily: 'Arial', padding: '10px' }}>
+      {/* Embedded CCP panel */}
       <div id="ccpContainer" style={{ height: '400px', marginBottom: '20px' }} />
+
       <h3>Translation Chat</h3>
+
+      {/* Message Viewer */}
       <div
         style={{
-          maxHeight: '200px',
+          maxHeight: '250px',
           overflowY: 'auto',
           border: '1px solid #ccc',
-          padding: '8px',
+          borderRadius: '4px',
+          padding: '10px',
+          backgroundColor: '#f9f9f9',
         }}
       >
         {messages.map((m) => (
-          <div key={m.id} style={{ marginBottom: '10px' }}>
+          <div key={m.id} style={{ marginBottom: '12px' }}>
             <div><strong>Customer:</strong> {m.original}</div>
             <div><strong>Translated:</strong> {m.translated}</div>
           </div>
         ))}
       </div>
-      <textarea
-        rows={2}
-        style={{ width: '100%', marginTop: '10px' }}
-        placeholder="Type your reply..."
-        value={reply}
-        onChange={(e) => setReply(e.target.value)}
-      />
-      <button onClick={sendReply} style={{ marginTop: '6px' }}>
-        Send (translated)
-      </button>
     </div>
   );
 };
