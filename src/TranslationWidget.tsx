@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import 'amazon-connect-streams';
 
 const API_URL = 'https://flv38gpj2c.execute-api.us-east-1.amazonaws.com/test/translate';
-const CCP_URL = 'https://ccaas-coe-sandbox.my.connect.aws/ccp-v2'; 
+const CCP_URL = 'https://ccaas-coe-sandbox.my.connect.aws/ccp-v2/'; 
 
 interface MessageItem {
   id: string;
@@ -17,29 +17,14 @@ interface ChatMessage {
 }
 
 const callTranslate = async (text: string) => {
-  try {
-    console.log('[callTranslate] Called with text:', text);
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
 
-    const resp = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
-
-    console.log('[callTranslate] Response status:', resp.status);
-
-    if (!resp.ok) {
-      throw new Error(HTTP error! status: ${resp.status});
-    }
-
-    const data = await resp.json();
-    console.log('[callTranslate] API returned:', data);
-
-    return data.translatedText;
-  } catch (error) {
-    console.error('[callTranslate] Error:', error);
-    return '[Translation Failed]';
-  }
+  const data = await resp.json();
+  return data.translatedText;
 };
 
 const TranslationWidget: React.FC = () => {
@@ -48,23 +33,18 @@ const TranslationWidget: React.FC = () => {
   const [activeContact, setActiveContact] = useState<any>(null);
 
   useEffect(() => {
-    console.log('[useEffect] Initializing CCP...');
     window.connect.core.initCCP(document.getElementById('ccpContainer')!, {
       ccpUrl: CCP_URL,
-      loginPopup: true,
+      loginPopup: false,
       region: 'us-east-1',
-      softphone: { allowFramedSoftphone: true },
+      softphone: { allowFramedSoftphone: false },
     });
 
     window.connect.contact((contact: any) => {
-      console.log('[connect.contact] New contact detected:', contact.getType());
-
       if (contact.getType() === 'chat') {
         setActiveContact(contact);
 
         contact.onMessage(async (msg: ChatMessage) => {
-          console.log('[onMessage] Message received:', msg);
-
           if (msg.participantRole === 'CUSTOMER') {
             const translated = await callTranslate(msg.content);
             setMessages((prev) => [
@@ -78,29 +58,13 @@ const TranslationWidget: React.FC = () => {
   }, []);
 
   const sendReply = async () => {
-    if (!reply.trim()) {
-      console.warn('[sendReply] Empty reply. Skipping.');
-      return;
-    }
-
-    if (!activeContact) {
-      console.warn('[sendReply] No active contact. Cannot send message.');
-      return;
-    }
-
-    console.log('[sendReply] Sending reply:', reply);
+    if (!reply.trim() || !activeContact) return;
 
     const translated = await callTranslate(reply);
-
-    try {
-      await activeContact.sendMessage({
-        content: translated,
-        contentType: 'text/plain',
-      });
-      console.log('[sendReply] Message sent successfully:', translated);
-    } catch (err) {
-      console.error('[sendReply] Failed to send message:', err);
-    }
+    activeContact.sendMessage({
+      content: translated,
+      contentType: 'text/plain',
+    });
 
     setReply('');
   };
